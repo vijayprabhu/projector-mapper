@@ -130,7 +130,7 @@ body { display: flex; flex-direction: column; }
   user-select: none;
   overflow: hidden;
 }
-.layer.spinning { overflow: hidden; }
+.layer.spinning, .layer.cropped { overflow: hidden; }
 .layer > * { transform-origin: 50% 50%; }
 @keyframes pm-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .editor .layer { cursor: move; }
@@ -286,3 +286,32 @@ body.presenting, body.presenting .layer { cursor: none !important; }
 .progress { height: 8px; background: #12141a; border-radius: 4px; overflow: hidden; margin-top: 10px; }
 .progress > div { height: 100%; width: 0; background: var(--accent-2); transition: width .2s linear; }
 #vidStatus { min-height: 1.4em; margin: 8px 0 0; }
+
+/* ---------- crop dialog ---------- */
+.modal .card.wide { width: min(880px, calc(100vw - 32px)); }
+.row .spacer { flex: 1; }
+#cropModes { display: inline-flex; }
+#cropSize { margin-left: 8px; }
+#cropStage {
+  display: flex; align-items: center; justify-content: center;
+  height: min(60vh, 540px); margin-top: 8px;
+  background: repeating-conic-gradient(#2a2e38 0 25%, #20232b 0 50%) 0 0 / 20px 20px;
+  border-radius: 8px; overflow: hidden;
+}
+#cropArea { position: relative; touch-action: none; user-select: none; }
+#cropArea > img, #cropArea > video { display: block; width: 100%; height: 100%; pointer-events: none; }
+#cropBox { position: absolute; cursor: move; outline: 1px solid rgba(255,255,255,.9); }
+#cropBox .shade { position: absolute; inset: 0; box-shadow: 0 0 0 9999px rgba(0,0,0,.6); pointer-events: none; }
+#cropBox.circle .shade { border-radius: 50%; outline: 2px solid #fff; }
+#cropBox.circle { outline-style: dashed; outline-color: rgba(255,255,255,.5); }
+#cropBox .thirds {
+  position: absolute; inset: 0; pointer-events: none;
+  background:
+    linear-gradient(90deg, transparent calc(33.33% - .5px), rgba(255,255,255,.35) 0 calc(33.33% + .5px), transparent 0 calc(66.66% - .5px), rgba(255,255,255,.35) 0 calc(66.66% + .5px), transparent 0),
+    linear-gradient(transparent calc(33.33% - .5px), rgba(255,255,255,.35) 0 calc(33.33% + .5px), transparent 0 calc(66.66% - .5px), rgba(255,255,255,.35) 0 calc(66.66% + .5px), transparent 0);
+}
+#cropBox .ch {
+  position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px;
+  background: #fff; border: 1px solid #333; border-radius: 3px;
+}
+#cropBox .ch.e { width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; }

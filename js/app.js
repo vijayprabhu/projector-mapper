@@ -52,6 +52,14 @@
       const d = y1 - y0 + g * y1, e = y3 - y0 + hh * y3, f = y0;
       return [a, b, c, d, e, f, g, hh];
     },
+    /** Map point (u, v) of the unit square onto quad q. */
+    map(q, u, v) {
+      const k = Geo.coeffs(q);
+      if (!k) return [q[0][0] + u * (q[1][0] - q[0][0]), q[0][1] + v * (q[3][1] - q[0][1])];
+      const [a, b, c, d, e, f, g, h] = k;
+      const z = g * u + h * v + 1;
+      return [(a * u + b * v + c) / z, (d * u + e * v + f) / z];
+    },
     /** CSS matrix3d that maps the rectangle (0,0)-(w,h) onto quad q [TL,TR,BR,BL]. */
     homography(w, h, q) {
       const k = Geo.coeffs(q);
@@ -84,6 +92,21 @@
       const p = Spin.period(L);
       const delay = -((Date.now() / 1000) % p);
       return `pm-spin ${p.toFixed(4)}s linear ${delay.toFixed(4)}s infinite ${L.spinCcw ? 'reverse' : 'normal'}`;
+    },
+  };
+
+  // ======================================================================
+  // Crop: L.crop = { x, y, w, h } in 0–1 of the source picture, plus a shape
+  // ('rect' | 'circle') and the mode the crop editor used. The layer's base
+  // size (L.w × L.h) is the size of the cropped part.
+  // ======================================================================
+  const FULL_CROP = { x: 0, y: 0, w: 1, h: 1, shape: 'rect', mode: 'free' };
+  const Crop = {
+    of: (L) => L.crop || FULL_CROP,
+    canCrop: (L) => L.type === 'image' || L.type === 'video',
+    active: (L) => {
+      const c = L.crop;
+      return !!c && (c.shape === 'circle' || c.x > 1e-6 || c.y > 1e-6 || c.w < 1 - 1e-6 || c.h < 1 - 1e-6);
     },
   };
 
@@ -379,13 +402,31 @@
           this.els.set(L.id, rec);
         }
         const key = contentKey(L);
-        if (rec.key !== key) { buildContent(rec.el, L, doc); rec.key = key; rec.spinKey = null; }
-        const spinKey = Spin.rpm(L) ? `${Spin.rpm(L)}|${!!L.spinCcw}` : '';
-        if (rec.spinKey !== spinKey) {
+        if (rec.key !== key) { buildContent(rec.el, L, doc); rec.key = key; rec.styleKey = null; }
+        const crop = Crop.active(L) ? Crop.of(L) : null;
+        const styleKey = [Spin.rpm(L), !!L.spinCcw, crop && [crop.x, crop.y, crop.w, crop.h, crop.shape].join(',')].join('|');
+        if (rec.styleKey !== styleKey) {
           const anim = Spin.css(L);
-          for (const child of rec.el.children) child.style.animation = anim;
+          for (const child of rec.el.children) {
+            const cs = child.style;
+            cs.animation = anim;
+            if (crop) {
+              // Show only the cropped part: scale the content up and shift it, and spin about the crop's centre.
+              Object.assign(cs, {
+                position: 'absolute',
+                width: `${100 / crop.w}%`, height: `${100 / crop.h}%`,
+                left: `${(-crop.x / crop.w) * 100}%`, top: `${(-crop.y / crop.h) * 100}%`,
+                transformOrigin: `${(crop.x + crop.w / 2) * 100}% ${(crop.y + crop.h / 2) * 100}%`,
+                maxWidth: 'none',
+              });
+            } else {
+              ['position', 'width', 'height', 'left', 'top', 'transformOrigin', 'maxWidth'].forEach((p) => { cs[p] = ''; });
+            }
+          }
           rec.el.classList.toggle('spinning', !!anim);
-          rec.spinKey = spinKey;
+          rec.el.classList.toggle('cropped', !!crop);
+          rec.el.style.clipPath = crop && crop.shape === 'circle' ? 'ellipse(50% 50% at 50% 50%)' : '';
+          rec.styleKey = styleKey;
         }
         const s = rec.el.style;
         s.width = L.w + 'px';
@@ -766,6 +807,15 @@
       <div class="row"><label>Font</label><select data-prop="fontFamily">${['system-ui, sans-serif', 'Georgia, serif', 'Impact, sans-serif', '"Courier New", monospace', '"Comic Sans MS", cursive', 'Arial Black, sans-serif']
         .map((f) => `<option value='${esc(f)}' ${f === L.fontFamily ? 'selected' : ''}>${esc(f.split(',')[0].replace(/"/g, ''))}</option>`).join('')}</select></div>`;
     }
+    if (Crop.canCrop(L)) {
+      const c = Crop.of(L);
+      const label = !Crop.active(L) ? 'none' : c.shape === 'circle' ? 'circle' : c.mode === 'square' ? '1:1' : 'free';
+      html += `
+      <div class="row"><label>Crop</label>
+        <button class="btn sm" data-act="crop" title="Crop to free form, 1:1 or a circle">Crop…</button>
+        ${Crop.active(L) ? '<button class="btn sm" data-act="uncrop" title="Show the whole picture again">Remove crop</button>' : ''}
+        <span class="muted">${label}</span></div>`;
+    }
     html += `
       <div class="row"><label>Spin</label>
         <input type="number" min="0" max="600" step="1" data-prop="spin" data-num value="${Spin.rpm(L)}" title="Rotations per minute (0 = off)"> rpm
@@ -832,6 +882,8 @@
   props.addEventListener('click', (e) => {
     const b = e.target.closest('[data-act]'), L = sel();
     if (!b || !L) return;
+    if (b.dataset.act === 'crop') return openCrop(L);
+    if (b.dataset.act === 'uncrop') { setCrop(L, null); return commit(); }
     if (b.dataset.act === 'restart') {
       document.querySelectorAll(`.layer[data-id="${L.id}"] video`).forEach((v) => { v.currentTime = 0; v.play().catch(() => {}); });
       output?.win.document.querySelectorAll(`.layer[data-id="${L.id}"] video`).forEach((v) => { v.currentTime = 0; v.play().catch(() => {}); });
@@ -882,7 +934,7 @@
         .layer>img,.layer>video,.layer>svg{display:block;width:100%;height:100%}
         .layer>.text{width:100%;height:100%;display:flex;align-items:center;justify-content:center;text-align:center;white-space:pre-wrap;line-height:1.1;overflow:hidden}
         .layer{pointer-events:none!important}
-        .layer.spinning{overflow:hidden}
+        .layer.spinning,.layer.cropped{overflow:hidden}
         .layer>*{transform-origin:50% 50%}
         @keyframes pm-spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
         .grid-overlay{position:absolute;left:0;top:0;pointer-events:none;z-index:100000}
@@ -1160,24 +1212,36 @@
     return items;
   }
 
-  /** Draw `src` rotated by `a` about its centre, clipped to the layer's own box (like the preview). */
-  function spinFrame(item, a) {
+  /** Draw the layer's crop of `src`, rotated by `a` about the crop's centre and clipped
+   *  to the layer's own box (and to a circle for a circular crop), like the preview. */
+  function layerFrame(item, a) {
     const { L, src } = item;
-    const sw = src.videoWidth || src.naturalWidth || src.width || L.w;
-    const sh = src.videoHeight || src.naturalHeight || src.height || L.h;
+    const crop = Crop.active(L) ? Crop.of(L) : FULL_CROP;
+    const sw = (src.videoWidth || src.naturalWidth || src.width || L.w) * crop.w;
+    const sh = (src.videoHeight || src.naturalHeight || src.height || L.h) * crop.h;
     let k = Math.max(sw / L.w, sh / L.h, 1);
     k = Math.min(k, 4096 / Math.max(L.w, L.h));
-    if (!item.spinCanvas) {
-      item.spinCanvas = document.createElement('canvas');
-      item.spinCanvas.width = Math.max(1, Math.round(L.w * k));
-      item.spinCanvas.height = Math.max(1, Math.round(L.h * k));
+    if (!item.frame) {
+      item.frame = document.createElement('canvas');
+      item.frame.width = Math.max(1, Math.round(L.w * k));
+      item.frame.height = Math.max(1, Math.round(L.h * k));
     }
-    const cv = item.spinCanvas, c = cv.getContext('2d');
+    const cv = item.frame, c = cv.getContext('2d');
+    const W = cv.width, H = cv.height;
     c.setTransform(1, 0, 0, 1, 0, 0);
-    c.clearRect(0, 0, cv.width, cv.height);
-    c.translate(cv.width / 2, cv.height / 2);
+    c.clearRect(0, 0, W, H);
+    c.save();
+    if (crop.shape === 'circle') {
+      c.beginPath();
+      c.ellipse(W / 2, H / 2, W / 2, H / 2, 0, 0, Math.PI * 2);
+      c.clip();
+    }
+    // The whole picture, scaled so that the crop fills the canvas, centred on the crop's centre.
+    const FW = W / crop.w, FH = H / crop.h;
+    c.translate(W / 2, H / 2);
     c.rotate(a);
-    c.drawImage(src, -cv.width / 2, -cv.height / 2, cv.width, cv.height);
+    c.drawImage(src, -(crop.x + crop.w / 2) * FW, -(crop.y + crop.h / 2) * FH, FW, FH);
+    c.restore();
     return cv;
   }
 
@@ -1189,7 +1253,7 @@
     ctx.fillRect(0, 0, project.width, project.height);
     for (const item of items) {
       const { L } = item;
-      const src = Spin.rpm(L) ? spinFrame(item, Spin.angle(L, t)) : item.src;
+      const src = Spin.rpm(L) || Crop.active(L) ? layerFrame(item, Spin.angle(L, t)) : item.src;
       if (!warper.draw(src, L.corners)) continue;
       ctx.globalAlpha = L.opacity;
       ctx.globalCompositeOperation = !L.blend || L.blend === 'normal' ? 'source-over' : L.blend;
@@ -1364,6 +1428,169 @@
   });
 
   // ======================================================================
+  // Crop editor
+  // ======================================================================
+  /** Change a layer's crop, keeping the part that stays visible where it is on the wall. */
+  function setCrop(L, next) {
+    const c0 = Crop.of(L);
+    const c1 = next || FULL_CROP;
+    // Where the new crop sits inside the old one (0–1 of the current layer box).
+    const u0 = (c1.x - c0.x) / c0.w, v0 = (c1.y - c0.y) / c0.h;
+    const u1 = (c1.x + c1.w - c0.x) / c0.w, v1 = (c1.y + c1.h - c0.y) / c0.h;
+    const q = L.corners;
+    L.corners = [[u0, v0], [u1, v0], [u1, v1], [u0, v1]].map(([u, v]) => Geo.map(q, u, v));
+    L.w = +(L.w * (c1.w / c0.w)).toFixed(3);
+    L.h = +(L.h * (c1.h / c0.h)).toFixed(3);
+    if (next) L.crop = { ...next }; else delete L.crop;
+  }
+
+  const cropUI = { L: null, nw: 0, nh: 0, scale: 1, box: null, mode: 'free', drag: null };
+  const cropArea = $('#cropArea'), cropBox = $('#cropBox');
+  const CROP_MIN = 8; // source pixels
+
+  async function openCrop(L) {
+    const m = media.get(L.mediaId);
+    if (!m) return toast('This layer\'s media is missing, so it can\'t be cropped.');
+    const isVideo = L.type === 'video';
+    const [nw, nh] = await naturalSize(m.url, isVideo);
+    cropArea.querySelector('img,video')?.remove();
+    const el = document.createElement(isVideo ? 'video' : 'img');
+    if (isVideo) Object.assign(el, { muted: true, loop: true, autoplay: true, playsInline: true });
+    el.src = m.url;
+    cropArea.prepend(el);
+    if (isVideo) el.play().catch(() => {});
+
+    const c = Crop.of(L);
+    Object.assign(cropUI, {
+      L, nw, nh,
+      mode: c.shape === 'circle' ? 'circle' : c.mode === 'square' ? 'square' : 'free',
+      box: { x: c.x * nw, y: c.y * nh, w: c.w * nw, h: c.h * nh },
+    });
+    $('#cropDlg').hidden = false;
+    // Fit the picture into the dialog.
+    const st = $('#cropStage');
+    cropUI.scale = Math.min((st.clientWidth - 24) / nw, (st.clientHeight - 24) / nh);
+    cropArea.style.width = nw * cropUI.scale + 'px';
+    cropArea.style.height = nh * cropUI.scale + 'px';
+    drawCrop();
+  }
+
+  function closeCrop() {
+    $('#cropDlg').hidden = true;
+    const v = cropArea.querySelector('video');
+    if (v) { v.pause(); v.removeAttribute('src'); v.load(); }
+    cropArea.querySelector('img,video')?.remove();
+    cropUI.L = null;
+  }
+
+  function setCropMode(mode) {
+    cropUI.mode = mode;
+    if (mode !== 'free') {
+      // Largest square inside the current box, keeping its centre.
+      const b = cropUI.box;
+      const s = Math.min(b.w, b.h);
+      cropUI.box = clampBox({ x: b.x + (b.w - s) / 2, y: b.y + (b.h - s) / 2, w: s, h: s });
+    }
+    drawCrop();
+  }
+
+  function clampBox(b) {
+    const { nw, nh } = cropUI;
+    b.w = Math.min(b.w, nw); b.h = Math.min(b.h, nh);
+    b.x = Math.min(Math.max(0, b.x), nw - b.w);
+    b.y = Math.min(Math.max(0, b.y), nh - b.h);
+    return b;
+  }
+
+  function drawCrop() {
+    const { box: b, scale: s, mode } = cropUI;
+    Object.assign(cropBox.style, { left: b.x * s + 'px', top: b.y * s + 'px', width: b.w * s + 'px', height: b.h * s + 'px' });
+    cropBox.classList.toggle('circle', mode === 'circle');
+    // Corner handles always; edge handles only for free form.
+    const pts = [['nw', 0, 0], ['ne', 1, 0], ['se', 1, 1], ['sw', 0, 1]];
+    if (mode === 'free') pts.push(['n', 0.5, 0], ['e', 1, 0.5], ['s', 0.5, 1], ['w', 0, 0.5]);
+    cropBox.querySelectorAll('.ch').forEach((h) => h.remove());
+    for (const [id, u, v] of pts) {
+      const h = document.createElement('div');
+      h.className = 'ch' + (id.length === 1 ? ' e' : '');
+      h.dataset.h = id;
+      h.style.left = u * 100 + '%';
+      h.style.top = v * 100 + '%';
+      h.style.cursor = id + '-resize';
+      cropBox.appendChild(h);
+    }
+    document.querySelectorAll('[data-crop-mode]').forEach((btn) => btn.classList.toggle('on', btn.dataset.cropMode === mode));
+    $('#cropSize').textContent = `${Math.round(b.w)} × ${Math.round(b.h)} px`;
+  }
+
+  const cropPoint = (e) => {
+    const r = cropArea.getBoundingClientRect();
+    return [(e.clientX - r.left) / cropUI.scale, (e.clientY - r.top) / cropUI.scale];
+  };
+
+  cropArea.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
+    const h = e.target.closest('.ch');
+    const inBox = e.target.closest('#cropBox');
+    if (!h && !inBox) return;
+    cropUI.drag = { h: h ? h.dataset.h : 'move', p0: cropPoint(e), b0: { ...cropUI.box } };
+    cropArea.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+
+  cropArea.addEventListener('pointermove', (e) => {
+    const d = cropUI.drag;
+    if (!d) return;
+    const { nw, nh } = cropUI;
+    const [px, py] = cropPoint(e);
+    const b0 = d.b0;
+    if (d.h === 'move') {
+      cropUI.box = clampBox({ ...b0, x: b0.x + px - d.p0[0], y: b0.y + py - d.p0[1] });
+      return drawCrop();
+    }
+    const L = d.h.includes('w'), R = d.h.includes('e'), T = d.h.includes('n'), B = d.h.includes('s');
+    const clampX = (x) => Math.min(Math.max(0, x), nw), clampY = (y) => Math.min(Math.max(0, y), nh);
+    if (cropUI.mode === 'free') {
+      let x0 = b0.x, y0 = b0.y, x1 = b0.x + b0.w, y1 = b0.y + b0.h;
+      if (L) x0 = Math.min(clampX(px), x1 - CROP_MIN);
+      if (R) x1 = Math.max(clampX(px), x0 + CROP_MIN);
+      if (T) y0 = Math.min(clampY(py), y1 - CROP_MIN);
+      if (B) y1 = Math.max(clampY(py), y0 + CROP_MIN);
+      cropUI.box = { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+    } else {
+      // Square: anchor the opposite corner and grow along the larger drag direction.
+      const ax = R ? b0.x : b0.x + b0.w, ay = B ? b0.y : b0.y + b0.h;
+      const sx = R ? 1 : -1, sy = B ? 1 : -1;
+      const avail = Math.min(sx > 0 ? nw - ax : ax, sy > 0 ? nh - ay : ay);
+      const side = Math.min(Math.max(CROP_MIN, sx * (px - ax), sy * (py - ay)), avail);
+      cropUI.box = { x: sx > 0 ? ax : ax - side, y: sy > 0 ? ay : ay - side, w: side, h: side };
+    }
+    drawCrop();
+  });
+  const endCropDrag = () => { cropUI.drag = null; };
+  cropArea.addEventListener('pointerup', endCropDrag);
+  cropArea.addEventListener('pointercancel', endCropDrag);
+
+  document.querySelectorAll('[data-crop-mode]').forEach((btn) => btn.addEventListener('click', () => setCropMode(btn.dataset.cropMode)));
+  $('#cropReset').addEventListener('click', () => {
+    const { nw, nh } = cropUI;
+    if (cropUI.mode === 'free') cropUI.box = { x: 0, y: 0, w: nw, h: nh };
+    else { const s = Math.min(nw, nh); cropUI.box = { x: (nw - s) / 2, y: (nh - s) / 2, w: s, h: s }; }
+    drawCrop();
+  });
+  $('#cropCancel').addEventListener('click', closeCrop);
+  $('#cropApply').addEventListener('click', () => {
+    const { L, nw, nh, box: b, mode } = cropUI;
+    if (!L || !project.layers.includes(L)) return closeCrop();
+    const r = (v) => Math.min(1, Math.max(0, +v.toFixed(6)));
+    const next = { x: r(b.x / nw), y: r(b.y / nh), w: r(b.w / nw), h: r(b.h / nh), shape: mode === 'circle' ? 'circle' : 'rect', mode };
+    const whole = next.shape === 'rect' && next.x === 0 && next.y === 0 && next.w === 1 && next.h === 1;
+    setCrop(L, whole ? null : next);
+    closeCrop();
+    commit();
+  });
+
+  // ======================================================================
   // Commands, keyboard, files
   // ======================================================================
   function run(cmd) {
@@ -1399,6 +1626,7 @@
 
   document.addEventListener('keydown', (e) => {
     if (isTyping(e.target)) return;
+    if (!$('#cropDlg').hidden) { if (e.key === 'Escape') closeCrop(); return; }
     const presenting = document.body.classList.contains('presenting');
     const mod = e.ctrlKey || e.metaKey;
     const k = e.key;

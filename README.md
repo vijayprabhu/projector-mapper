@@ -51,6 +51,7 @@ Use **Save project** to keep an editable copy, so you can tweak the mapping and 
   - Corners snap to other layers' corners and to the screen edges. Hold **Alt** to turn snapping off.
   - Click a corner (or press 1–4) and use the arrow keys for pixel-exact adjustment.
 - **Layer properties:** position and size in exact numbers, opacity, blend mode, fill and outline colours, corner radius, font, flip, rotate 90°, reset warp, original aspect, fit to output and fill output.
+- **Crop (images and videos):** click **Crop…** in the layer properties and choose **Free form**, **1:1** or **Circle**, then drag the box and its handles. The cropped part stays exactly where it was on the wall, even on a warped layer. **Remove crop** brings back the whole picture. A circle crop combined with Spin turns the picture inside its circle.
 - **Spin:** set a speed in rotations per minute and a direction to make any layer spin continuously. The content turns inside its mapped area, so it stays on the surface you warped it to (anything that swings outside the layer's edges is clipped; a square or round layer spins cleanly). Exported videos pick a length that completes whole turns so the loop is seamless.
 - **Layer list:** reorder, show or hide, lock (locked layers can't be clicked or moved), duplicate and delete. Double-click a name to rename it.
 - **Alignment grid (G):** a test pattern with the output border, grid, diagonals and a centre circle, for lining up the projector.

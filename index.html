@@ -135,6 +135,28 @@
     </div>
   </div>
 
+  <div id="cropDlg" class="modal" hidden>
+    <div class="card wide">
+      <h3>Crop</h3>
+      <div class="row">
+        <div class="group seg" id="cropModes">
+          <button class="btn" data-crop-mode="free" title="Any rectangle">Free form</button>
+          <button class="btn" data-crop-mode="square" title="Square, keeps 1:1">1:1</button>
+          <button class="btn" data-crop-mode="circle" title="Circle">Circle</button>
+        </div>
+        <span class="muted" id="cropSize"></span>
+      </div>
+      <div id="cropStage"><div id="cropArea"><div id="cropBox"><div class="shade"></div><div class="thirds"></div></div></div></div>
+      <p class="muted">Drag inside the box to move it and drag the handles to resize. The cropped area stays where it is on the wall.</p>
+      <div class="row end">
+        <button class="btn" id="cropReset" title="Select the whole picture">Select all</button>
+        <span class="spacer"></span>
+        <button class="btn" id="cropCancel">Cancel</button>
+        <button class="btn primary" id="cropApply">Apply</button>
+      </div>
+    </div>
+  </div>
+
   <script src="js/app.js"></script>
 </body>
 </html>
