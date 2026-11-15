@@ -6,6 +6,10 @@ No install and no build step. It runs fully offline.
 
 ## Getting started
 
+**Use it online:** <https://vijayprabhu.github.io/projector-mapper/>. Your projects are saved in your own browser and nothing is uploaded.
+
+To run it offline instead:
+
 1. Download or clone this repository.
 2. Open `index.html` in **Chrome or Edge**. Double-clicking the file works. You can also serve the folder with `python3 -m http.server` and open <http://localhost:8000>.
 3. Connect the projector as a **second (extended) display**.
