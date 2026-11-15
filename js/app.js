@@ -64,6 +64,30 @@
   };
 
   // ======================================================================
+  // Spin: a layer's content can rotate continuously inside its mapped area.
+  // The phase comes from the wall clock, so the editor and the output window
+  // stay in step.
+  // ======================================================================
+  const Spin = {
+    rpm: (L) => Math.max(0, +L.spin || 0),
+    period: (L) => 60 / Spin.rpm(L),
+    /** Angle in radians at time `t` seconds (wall clock or elapsed). */
+    angle(L, t) {
+      const rpm = Spin.rpm(L);
+      if (!rpm) return 0;
+      const turns = ((t * rpm) / 60) % 1;
+      return turns * Math.PI * 2 * (L.spinCcw ? -1 : 1);
+    },
+    /** CSS animation for the DOM preview. */
+    css(L) {
+      if (!Spin.rpm(L)) return '';
+      const p = Spin.period(L);
+      const delay = -((Date.now() / 1000) % p);
+      return `pm-spin ${p.toFixed(4)}s linear ${delay.toFixed(4)}s infinite ${L.spinCcw ? 'reverse' : 'normal'}`;
+    },
+  };
+
+  // ======================================================================
   // Storage (IndexedDB): project JSON + media blobs
   // ======================================================================
   const DB = {
@@ -165,7 +189,7 @@
   function baseLayer(extra) {
     return {
       id: uid(), name: 'Layer', visible: true, locked: false,
-      opacity: 1, blend: 'normal', w: 400, h: 400, corners: null, ...extra,
+      opacity: 1, blend: 'normal', spin: 0, spinCcw: false, w: 400, h: 400, corners: null, ...extra,
     };
   }
 
@@ -355,7 +379,14 @@
           this.els.set(L.id, rec);
         }
         const key = contentKey(L);
-        if (rec.key !== key) { buildContent(rec.el, L, doc); rec.key = key; }
+        if (rec.key !== key) { buildContent(rec.el, L, doc); rec.key = key; rec.spinKey = null; }
+        const spinKey = Spin.rpm(L) ? `${Spin.rpm(L)}|${!!L.spinCcw}` : '';
+        if (rec.spinKey !== spinKey) {
+          const anim = Spin.css(L);
+          for (const child of rec.el.children) child.style.animation = anim;
+          rec.el.classList.toggle('spinning', !!anim);
+          rec.spinKey = spinKey;
+        }
         const s = rec.el.style;
         s.width = L.w + 'px';
         s.height = L.h + 'px';
@@ -735,6 +766,13 @@
       <div class="row"><label>Font</label><select data-prop="fontFamily">${['system-ui, sans-serif', 'Georgia, serif', 'Impact, sans-serif', '"Courier New", monospace', '"Comic Sans MS", cursive', 'Arial Black, sans-serif']
         .map((f) => `<option value='${esc(f)}' ${f === L.fontFamily ? 'selected' : ''}>${esc(f.split(',')[0].replace(/"/g, ''))}</option>`).join('')}</select></div>`;
     }
+    html += `
+      <div class="row"><label>Spin</label>
+        <input type="number" min="0" max="600" step="1" data-prop="spin" data-num value="${Spin.rpm(L)}" title="Rotations per minute (0 = off)"> rpm
+        <select data-prop="spinCcw" data-bool-sel title="Direction: clockwise or anticlockwise">
+          <option value="" ${L.spinCcw ? '' : 'selected'}>↻ CW</option>
+          <option value="1" ${L.spinCcw ? 'selected' : ''}>↺ CCW</option>
+        </select></div>`;
     if (L.type === 'video') {
       html += `<div class="row"><label>Video</label><button class="btn sm" data-act="restart">Restart</button></div>`;
     }
@@ -761,6 +799,7 @@
   const props = $('#props');
   function readProp(t) {
     if (t.hasAttribute('data-bool')) return t.checked;
+    if (t.hasAttribute('data-bool-sel')) return !!t.value;
     if (t.hasAttribute('data-num')) return parseFloat(t.value) || 0;
     return t.value;
   }
@@ -776,6 +815,7 @@
     if (t.dataset.prop) {
       L[t.dataset.prop] = readProp(t);
       if (t.dataset.prop === 'name' && !L.name.trim()) L.name = 'Layer';
+      if (t.dataset.prop === 'spin') L.spin = Math.min(600, Math.max(0, L.spin));
       commit();
     } else if (t.dataset.bbox) {
       const bb = Geo.bbox(L.corners);
@@ -842,6 +882,9 @@
         .layer>img,.layer>video,.layer>svg{display:block;width:100%;height:100%}
         .layer>.text{width:100%;height:100%;display:flex;align-items:center;justify-content:center;text-align:center;white-space:pre-wrap;line-height:1.1;overflow:hidden}
         .layer{pointer-events:none!important}
+        .layer.spinning{overflow:hidden}
+        .layer>*{transform-origin:50% 50%}
+        @keyframes pm-spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
         .grid-overlay{position:absolute;left:0;top:0;pointer-events:none;z-index:100000}
         #hint{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);font:16px system-ui,sans-serif;color:#fff;
           background:rgba(0,0,0,.75);border:1px solid #555;padding:16px 22px;border-radius:10px;text-align:center;z-index:999999;transition:opacity .5s;pointer-events:none}
@@ -1117,12 +1160,36 @@
     return items;
   }
 
-  function composeFrame(ctx, warper, items) {
+  /** Draw `src` rotated by `a` about its centre, clipped to the layer's own box (like the preview). */
+  function spinFrame(item, a) {
+    const { L, src } = item;
+    const sw = src.videoWidth || src.naturalWidth || src.width || L.w;
+    const sh = src.videoHeight || src.naturalHeight || src.height || L.h;
+    let k = Math.max(sw / L.w, sh / L.h, 1);
+    k = Math.min(k, 4096 / Math.max(L.w, L.h));
+    if (!item.spinCanvas) {
+      item.spinCanvas = document.createElement('canvas');
+      item.spinCanvas.width = Math.max(1, Math.round(L.w * k));
+      item.spinCanvas.height = Math.max(1, Math.round(L.h * k));
+    }
+    const cv = item.spinCanvas, c = cv.getContext('2d');
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.clearRect(0, 0, cv.width, cv.height);
+    c.translate(cv.width / 2, cv.height / 2);
+    c.rotate(a);
+    c.drawImage(src, -cv.width / 2, -cv.height / 2, cv.width, cv.height);
+    return cv;
+  }
+
+  /** `t`: seconds used for the spin angle (wall clock for a still, elapsed time for a video). */
+  function composeFrame(ctx, warper, items, t = Date.now() / 1000) {
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
     ctx.fillStyle = project.background;
     ctx.fillRect(0, 0, project.width, project.height);
-    for (const { L, src } of items) {
+    for (const item of items) {
+      const { L } = item;
+      const src = Spin.rpm(L) ? spinFrame(item, Spin.angle(L, t)) : item.src;
       if (!warper.draw(src, L.corners)) continue;
       ctx.globalAlpha = L.opacity;
       ctx.globalCompositeOperation = !L.blend || L.blend === 'normal' ? 'source-over' : L.blend;
@@ -1184,15 +1251,36 @@
       .filter((l) => l.visible && l.type === 'video')
       .map((l) => stageEl.querySelector(`.layer[data-id="${l.id}"] video`)?.duration || 0)
       .filter(Number.isFinite));
-    $('#vidSecs').value = longest ? Math.round(longest * 10) / 10 : 10;
+    const spinLoop = spinLoopSeconds();
+    $('#vidSecs').value = longest ? Math.round(longest * 10) / 10 : spinLoop || 10;
     $('#vidInfo').innerHTML = `Output: <b>${project.width} × ${project.height}</b>, <b>${type[1].toUpperCase()}</b>` +
       (type[1] === 'mp4' ? '' : '<br>This browser can\'t record MP4, so the video will be WebM. Most Android projectors play WebM. If yours doesn\'t, convert it with a free tool such as HandBrake.') +
-      (longest ? `<br>The length is set to your longest video (${longest.toFixed(1)} s) so the loop is seamless.` : '<br>Your mapping has no moving layers. A PNG may be simpler, unless your projector can\'t loop a photo.') +
+      (longest ? `<br>The length is set to your longest video (${longest.toFixed(1)} s) so the loop is seamless.` +
+        (spinLoop ? ` Spinning layers loop seamlessly when the length is a multiple of ${spinLoop} s.` : '')
+        : spinLoop ? `<br>The length is set to ${spinLoop} s so every spinning layer completes whole turns and the loop is seamless.`
+        : '<br>Your mapping has no moving layers. A PNG may be simpler, unless your projector can\'t loop a photo.') +
       '<br>Recording runs in real time, so keep this tab visible until it finishes.';
     $('#vidBar').style.width = '0';
     $('#vidStatus').textContent = '';
     $('#vidStart').disabled = false;
     $('#videoDlg').hidden = false;
+  }
+
+  /** Shortest length (s) in which every spinning layer completes whole turns, or 0 if none / too long. */
+  function spinLoopSeconds() {
+    const gcd = (a, b) => (b ? gcd(b, a % b) : a);
+    let lcm = 0; // in milliseconds
+    for (const L of project.layers) {
+      if (!L.visible || !Spin.rpm(L)) continue;
+      const ms = Math.round(Spin.period(L) * 1000);
+      lcm = lcm ? (lcm / gcd(lcm, ms)) * ms : ms;
+      if (lcm > 600000) return 0;
+    }
+    if (!lcm) return 0;
+    // Very short loops are fine for the projector, but give it a few turns.
+    let secs = lcm / 1000;
+    while (secs < 5) secs += lcm / 1000;
+    return Math.round(secs * 1000) / 1000;
   }
 
   async function recordVideo() {
@@ -1219,7 +1307,7 @@
         v.onseeked = r;
         v.currentTime = 0;
       })));
-      composeFrame(ctx, warper, items);
+      composeFrame(ctx, warper, items, 0);
       await Promise.all(videos.map((v) => v.play().catch(() => {})));
 
       const stream = out.captureStream(fps);
@@ -1237,7 +1325,7 @@
         const tick = () => {
           const t = (performance.now() - t0) / 1000;
           if (stopped || t >= secs) return resolve();
-          composeFrame(ctx, warper, items);
+          composeFrame(ctx, warper, items, t);
           frames++;
           $('#vidBar').style.width = `${(t / secs) * 100}%`;
           $('#vidStatus').textContent = `Recording… ${Math.ceil(secs - t)} s left`;
@@ -1246,7 +1334,7 @@
         requestAnimationFrame(tick);
       });
       // Hold the last frame briefly so the file is the full length.
-      composeFrame(ctx, warper, items);
+      composeFrame(ctx, warper, items, secs);
       await new Promise((r) => setTimeout(r, 1000 / fps + 50));
       rec.stop();
       await done;

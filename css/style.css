@@ -130,6 +130,9 @@ body { display: flex; flex-direction: column; }
   user-select: none;
   overflow: hidden;
 }
+.layer.spinning { overflow: hidden; }
+.layer > * { transform-origin: 50% 50%; }
+@keyframes pm-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .editor .layer { cursor: move; }
 .grid-overlay { position: absolute; left: 0; top: 0; pointer-events: none; z-index: 100000; }
 
