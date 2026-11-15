@@ -37,12 +37,17 @@
     <div class="spacer"></div>
 
     <div class="group">
-      <button class="btn" data-cmd="export" title="Save project to a file">Export</button>
-      <label class="btn" title="Load project from a file">
-        Import
+      <button class="btn" data-cmd="export" title="Save the editable project (with its media) to a file">Save project</button>
+      <label class="btn" title="Open a saved project file">
+        Open project
         <input id="importInput" type="file" accept=".json,application/json" hidden>
       </label>
       <button class="btn" data-cmd="new" title="Clear everything">New</button>
+    </div>
+
+    <div class="group">
+      <button class="btn export" data-cmd="png" title="Save the mapping as an image for the projector's photo player">Export PNG</button>
+      <button class="btn export" data-cmd="video" title="Save the mapping as a looping video for the projector's video player">Export video</button>
     </div>
 
     <div class="group">
@@ -113,6 +118,22 @@
       </section>
     </aside>
   </main>
+
+  <div id="videoDlg" class="modal" hidden>
+    <div class="card">
+      <h3>Export looping video</h3>
+      <div class="row"><label>Length</label><input id="vidSecs" type="number" min="1" max="600" step="0.1"> seconds</div>
+      <div class="row"><label>Frame rate</label>
+        <select id="vidFps"><option>24</option><option selected>30</option><option>60</option></select> fps</div>
+      <p class="muted" id="vidInfo"></p>
+      <div class="progress"><div id="vidBar"></div></div>
+      <p id="vidStatus"></p>
+      <div class="row end">
+        <button class="btn" id="vidCancel">Close</button>
+        <button class="btn primary" id="vidStart">Record</button>
+      </div>
+    </div>
+  </div>
 
   <script src="js/app.js"></script>
 </body>

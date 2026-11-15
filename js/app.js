@@ -35,8 +35,9 @@
     rect(cx, cy, w, h) {
       return [[cx - w / 2, cy - h / 2], [cx + w / 2, cy - h / 2], [cx + w / 2, cy + h / 2], [cx - w / 2, cy + h / 2]];
     },
-    /** CSS matrix3d that maps the rectangle (0,0)-(w,h) onto quad q [TL,TR,BR,BL]. */
-    homography(w, h, q) {
+    /** Coefficients [a,b,c,d,e,f,g,h] mapping the unit square onto quad q:
+     *  X = (a·u + b·v + c) / (g·u + h·v + 1), Y = (d·u + e·v + f) / (g·u + h·v + 1). */
+    coeffs(q) {
       const [[x0, y0], [x1, y1], [x2, y2], [x3, y3]] = q;
       const dx1 = x1 - x2, dx2 = x3 - x2, dy1 = y1 - y2, dy2 = y3 - y2;
       const sx = x0 - x1 + x2 - x3, sy = y0 - y1 + y2 - y3;
@@ -49,6 +50,13 @@
       }
       const a = x1 - x0 + g * x1, b = x3 - x0 + hh * x3, c = x0;
       const d = y1 - y0 + g * y1, e = y3 - y0 + hh * y3, f = y0;
+      return [a, b, c, d, e, f, g, hh];
+    },
+    /** CSS matrix3d that maps the rectangle (0,0)-(w,h) onto quad q [TL,TR,BR,BL]. */
+    homography(w, h, q) {
+      const k = Geo.coeffs(q);
+      if (!k) return null;
+      const [a, b, c, d, e, f, g, hh] = k;
       // Unit square → quad; pre-scale input by (1/w, 1/h). Column-major.
       const m = [a / w, d / w, 0, g / w, b / h, e / h, 0, hh / h, 0, 0, 1, 0, c, f, 0, 1];
       return `matrix3d(${m.map((v) => +v.toFixed(10)).join(',')})`;
@@ -941,6 +949,333 @@
   }
 
   // ======================================================================
+  // Export to PNG / looping video (for the projector's own media player)
+  //
+  // Every visible layer is drawn at full output resolution: WebGL applies the
+  // same perspective warp as the editor, and a 2D canvas composites the layers
+  // with their opacity and blend mode.
+  // ======================================================================
+  function createWarper(W, H) {
+    const canvas = document.createElement('canvas');
+    canvas.width = W;
+    canvas.height = H;
+    const gl = canvas.getContext('webgl2', { premultipliedAlpha: true, preserveDrawingBuffer: true, alpha: true, antialias: false });
+    if (!gl) throw new Error('This browser does not support WebGL2. Try the latest Chrome or Edge.');
+    const sh = (type, src) => {
+      const s = gl.createShader(type);
+      gl.shaderSource(s, src);
+      gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+      return s;
+    };
+    const prog = gl.createProgram();
+    gl.attachShader(prog, sh(gl.VERTEX_SHADER, `#version 300 es
+      in vec2 p; void main() { gl_Position = vec4(p, 0.0, 1.0); }`));
+    gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, `#version 300 es
+      precision highp float;
+      uniform mat3 Hi; uniform sampler2D tex; uniform float outH;
+      out vec4 o;
+      void main() {
+        vec3 q = Hi * vec3(gl_FragCoord.x, outH - gl_FragCoord.y, 1.0);
+        if (q.z <= 0.0) discard;
+        vec2 uv = q.xy / q.z;
+        // Anti-aliased edges: distance to the layer border in output pixels.
+        vec2 e = min(uv, 1.0 - uv) / max(fwidth(uv), vec2(1e-6));
+        float a = clamp(min(e.x, e.y) + 0.5, 0.0, 1.0);
+        if (a <= 0.0) discard;
+        o = texture(tex, clamp(uv, 0.0, 1.0)) * a;
+      }`));
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+    gl.useProgram(prog);
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+    const loc = gl.getAttribLocation(prog, 'p');
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    const tex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+    gl.viewport(0, 0, W, H);
+    gl.uniform1f(gl.getUniformLocation(prog, 'outH'), H);
+    const uHi = gl.getUniformLocation(prog, 'Hi');
+
+    return {
+      canvas,
+      /** Draw `src` warped onto `corners`. Returns false if the quad is degenerate. */
+      draw(src, corners) {
+        gl.clearColor(0, 0, 0, 0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        const k = Geo.coeffs(corners);
+        if (!k) return false;
+        const [a, b, c, d, e, f, g, h] = k;
+        // Invert M = [[a,b,c],[d,e,f],[g,h,1]] (output pixel -> uv).
+        const A = e - f * h, B = f * g - d, C = d * h - e * g;
+        const det = a * A + b * B + c * C;
+        if (Math.abs(det) < 1e-12) return false;
+        const inv = [
+          [A, c * h - b, b * f - c * e],
+          [B, a - c * g, c * d - a * f],
+          [C, b * g - a * h, a * e - b * d],
+        ].map((r) => r.map((v) => v / det));
+        // Column-major for WebGL.
+        gl.uniformMatrix3fv(uHi, false, [inv[0][0], inv[1][0], inv[2][0], inv[0][1], inv[1][1], inv[2][1], inv[0][2], inv[1][2], inv[2][2]]);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        return true;
+      },
+    };
+  }
+
+  const loadImage = (url) => new Promise((res, rej) => {
+    const i = new Image();
+    i.onload = () => res(i);
+    i.onerror = () => rej(new Error('Could not load an image'));
+    i.src = url;
+  });
+
+  /** How much bigger than its base size a layer is drawn on the output (for crisp shapes/text). */
+  function layerScale(L) {
+    const c = L.corners;
+    const horiz = Math.max(Geo.dist(c[0], c[1]), Geo.dist(c[3], c[2])) / L.w;
+    const vert = Math.max(Geo.dist(c[0], c[3]), Geo.dist(c[1], c[2])) / L.h;
+    return Math.min(Math.max(1, horiz, vert), 8192 / Math.max(L.w, L.h), 6);
+  }
+
+  function drawTextLayer(L, k) {
+    const cv = document.createElement('canvas');
+    cv.width = Math.max(1, Math.round(L.w * k));
+    cv.height = Math.max(1, Math.round(L.h * k));
+    const ctx = cv.getContext('2d');
+    ctx.scale(k, k);
+    ctx.font = `${L.bold ? 700 : 400} ${L.fontSize}px ${L.fontFamily}`;
+    ctx.fillStyle = L.color;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const lines = [];
+    for (const para of String(L.text).split('\n')) {
+      let line = '';
+      for (const word of para.split(/(\s+)/)) {
+        const test = line + word;
+        if (line && ctx.measureText(test).width > L.w) { lines.push(line.trimEnd()); line = word.trimStart(); } else line = test;
+      }
+      lines.push(line);
+    }
+    const lh = L.fontSize * 1.1;
+    const top = L.h / 2 - (lines.length * lh) / 2 + lh / 2;
+    lines.forEach((ln, i) => ctx.fillText(ln, L.w / 2, top + i * lh));
+    return cv;
+  }
+
+  /** Load a drawable source for every visible layer. Videos get their own element so they can be restarted. */
+  async function prepareLayers(forVideo) {
+    const items = [];
+    for (const L of project.layers) {
+      if (!L.visible) continue;
+      const m = L.mediaId && media.get(L.mediaId);
+      let src = null, video = null;
+      if (L.type === 'image' && m) {
+        src = await loadImage(m.url);
+      } else if (L.type === 'video' && m) {
+        video = document.createElement('video');
+        Object.assign(video, { src: m.url, muted: true, loop: true, playsInline: true, preload: 'auto' });
+        await new Promise((res, rej) => {
+          video.onloadeddata = res;
+          video.onerror = () => rej(new Error(`Could not load video "${L.name}"`));
+        });
+        if (!forVideo) {
+          // For a still image, use the frame that is showing in the editor right now.
+          const live = stageEl.querySelector(`.layer[data-id="${L.id}"] video`);
+          video.currentTime = live ? live.currentTime : 0;
+          await new Promise((r) => { video.onseeked = r; setTimeout(r, 1500); });
+        }
+        src = video;
+      } else if (L.type === 'shape') {
+        const k = layerScale(L);
+        const svg = new Blob([shapeSVG(L)], { type: 'image/svg+xml' });
+        const url = URL.createObjectURL(svg);
+        try {
+          const img = await loadImage(url);
+          const cv = document.createElement('canvas');
+          cv.width = Math.max(1, Math.round(L.w * k));
+          cv.height = Math.max(1, Math.round(L.h * k));
+          cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+          src = cv;
+        } finally {
+          URL.revokeObjectURL(url);
+        }
+      } else if (L.type === 'text') {
+        src = drawTextLayer(L, layerScale(L));
+      }
+      if (src) items.push({ L, src, video });
+    }
+    return items;
+  }
+
+  function composeFrame(ctx, warper, items) {
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = project.background;
+    ctx.fillRect(0, 0, project.width, project.height);
+    for (const { L, src } of items) {
+      if (!warper.draw(src, L.corners)) continue;
+      ctx.globalAlpha = L.opacity;
+      ctx.globalCompositeOperation = !L.blend || L.blend === 'normal' ? 'source-over' : L.blend;
+      ctx.drawImage(warper.canvas, 0, 0);
+    }
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
+  }
+
+  function download(blob, name) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  }
+
+  const stamp = () => new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '');
+
+  async function exportPNG() {
+    if (!project.layers.some((l) => l.visible)) return toast('Nothing to export yet. Add a layer first.');
+    toast('Rendering image…');
+    try {
+      const W = project.width, H = project.height;
+      const out = document.createElement('canvas');
+      out.width = W;
+      out.height = H;
+      const items = await prepareLayers(false);
+      composeFrame(out.getContext('2d'), createWarper(W, H), items);
+      const blob = await new Promise((r) => out.toBlob(r, 'image/png'));
+      download(blob, `projector-mapping-${W}x${H}-${stamp()}.png`);
+      toast(`Saved a ${W} × ${H} PNG. Copy it to a USB stick for the projector.`);
+    } catch (err) {
+      toast('Export failed: ' + err.message);
+    }
+  }
+
+  // ---------- looping video ----------
+  const VIDEO_TYPES = [
+    ['video/mp4;codecs=avc1.640033', 'mp4'],
+    ['video/mp4;codecs=avc1.4d0033', 'mp4'],
+    ['video/mp4;codecs=avc1', 'mp4'],
+    ['video/mp4', 'mp4'],
+    ['video/webm;codecs=vp9', 'webm'],
+    ['video/webm;codecs=vp8', 'webm'],
+    ['video/webm', 'webm'],
+  ];
+  const pickVideoType = () => (window.MediaRecorder ? VIDEO_TYPES.find(([t]) => MediaRecorder.isTypeSupported(t)) : null);
+
+  let recording = null; // { cancel() }
+
+  function openVideoDialog() {
+    if (!project.layers.some((l) => l.visible)) return toast('Nothing to export yet. Add a layer first.');
+    const type = pickVideoType();
+    if (!type) return toast('This browser cannot record video. Try the latest Chrome or Edge.');
+    const longest = Math.max(0, ...project.layers
+      .filter((l) => l.visible && l.type === 'video')
+      .map((l) => stageEl.querySelector(`.layer[data-id="${l.id}"] video`)?.duration || 0)
+      .filter(Number.isFinite));
+    $('#vidSecs').value = longest ? Math.round(longest * 10) / 10 : 10;
+    $('#vidInfo').innerHTML = `Output: <b>${project.width} × ${project.height}</b>, <b>${type[1].toUpperCase()}</b>` +
+      (type[1] === 'mp4' ? '' : '<br>This browser can\'t record MP4, so the video will be WebM. Most Android projectors play WebM. If yours doesn\'t, convert it with a free tool such as HandBrake.') +
+      (longest ? `<br>The length is set to your longest video (${longest.toFixed(1)} s) so the loop is seamless.` : '<br>Your mapping has no moving layers. A PNG may be simpler, unless your projector can\'t loop a photo.') +
+      '<br>Recording runs in real time, so keep this tab visible until it finishes.';
+    $('#vidBar').style.width = '0';
+    $('#vidStatus').textContent = '';
+    $('#vidStart').disabled = false;
+    $('#videoDlg').hidden = false;
+  }
+
+  async function recordVideo() {
+    const secs = Math.min(600, Math.max(1, parseFloat($('#vidSecs').value) || 10));
+    const fps = +$('#vidFps').value || 30;
+    const [mimeType, ext] = pickVideoType();
+    const W = project.width, H = project.height;
+    $('#vidStart').disabled = true;
+    $('#vidStatus').textContent = 'Preparing…';
+    let items;
+    let stopped = false;
+    try {
+      const warper = createWarper(W, H);
+      const out = document.createElement('canvas');
+      out.width = W;
+      out.height = H;
+      const ctx = out.getContext('2d');
+      items = await prepareLayers(true);
+      const videos = items.filter((i) => i.video).map((i) => i.video);
+
+      // Start every video from the beginning together, so the loop lines up.
+      await Promise.all(videos.map((v) => new Promise((r) => {
+        if (v.currentTime === 0) return r();
+        v.onseeked = r;
+        v.currentTime = 0;
+      })));
+      composeFrame(ctx, warper, items);
+      await Promise.all(videos.map((v) => v.play().catch(() => {})));
+
+      const stream = out.captureStream(fps);
+      const pixels = W * H;
+      const rec = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: Math.round(Math.min(40e6, Math.max(8e6, pixels * fps * 0.15))) });
+      const chunks = [];
+      rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+      const done = new Promise((r) => { rec.onstop = r; });
+      rec.start(1000);
+      const t0 = performance.now();
+
+      recording = { cancel() { stopped = true; } };
+      let frames = 0;
+      await new Promise((resolve) => {
+        const tick = () => {
+          const t = (performance.now() - t0) / 1000;
+          if (stopped || t >= secs) return resolve();
+          composeFrame(ctx, warper, items);
+          frames++;
+          $('#vidBar').style.width = `${(t / secs) * 100}%`;
+          $('#vidStatus').textContent = `Recording… ${Math.ceil(secs - t)} s left`;
+          requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      });
+      // Hold the last frame briefly so the file is the full length.
+      composeFrame(ctx, warper, items);
+      await new Promise((r) => setTimeout(r, 1000 / fps + 50));
+      rec.stop();
+      await done;
+      const achieved = frames / secs;
+      stream.getTracks().forEach((t) => t.stop());
+      if (stopped) {
+        $('#vidStatus').textContent = 'Cancelled';
+      } else {
+        download(new Blob(chunks, { type: mimeType.split(';')[0] }), `projector-mapping-${W}x${H}-${stamp()}.${ext}`);
+        $('#vidBar').style.width = '100%';
+        $('#vidStatus').textContent = 'Done. Copy the video to a USB stick and set the projector\'s player to repeat.' +
+          (achieved < fps * 0.8 ? ` Note: this computer only managed about ${Math.round(achieved)} fps, so motion may look choppy. Try a lower frame rate, or close other apps and record again.` : '');
+      }
+    } catch (err) {
+      $('#vidStatus').textContent = 'Export failed: ' + err.message;
+    } finally {
+      items?.forEach((i) => { if (i.video) { i.video.pause(); i.video.removeAttribute('src'); i.video.load(); } });
+      recording = null;
+      $('#vidStart').disabled = false;
+    }
+  }
+
+  $('#vidStart').addEventListener('click', recordVideo);
+  $('#vidCancel').addEventListener('click', () => {
+    if (recording) recording.cancel();
+    else $('#videoDlg').hidden = true;
+  });
+
+  // ======================================================================
   // Commands, keyboard, files
   // ======================================================================
   function run(cmd) {
@@ -959,6 +1294,8 @@
       case 'output': return openOutput();
       case 'present': return setPresenting(true, true);
       case 'export': return exportProject();
+      case 'png': return exportPNG();
+      case 'video': return openVideoDialog();
       case 'new':
         if (!confirm('Clear all layers and start a new project?')) return;
         project = { ...defaultProject(), width: project.width, height: project.height };

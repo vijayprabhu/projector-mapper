@@ -22,14 +22,17 @@ html, body {
   font: 13px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   overflow: hidden;
 }
+body { display: flex; flex-direction: column; }
 
 /* ---------- toolbar ---------- */
 #toolbar {
-  height: 48px;
+  flex: none;
+  min-height: 48px;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-  padding: 0 10px;
+  gap: 8px 10px;
+  padding: 6px 10px;
   background: var(--panel);
   border-bottom: 1px solid var(--line);
   user-select: none;
@@ -59,11 +62,13 @@ html, body {
 .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 .btn.accent { border-color: var(--accent-2); color: #bff5e2; }
 .btn.danger { color: #ffb3b5; }
+.btn.export { border-color: var(--warp); color: #ffe2a8; }
+.btn:disabled { opacity: .5; cursor: default; }
 .btn.danger:hover { border-color: var(--danger); }
 .btn.sm { padding: 3px 7px; font-size: 12px; }
 
 /* ---------- layout ---------- */
-#main { display: flex; height: calc(100% - 48px); }
+#main { display: flex; flex: 1; min-height: 0; }
 
 #viewport {
   position: relative;
@@ -240,7 +245,6 @@ body.presenting #toolbar,
 body.presenting #panel,
 body.presenting #emptyHint,
 body.presenting #overlay { display: none !important; }
-body.presenting #main { height: 100%; }
 body.presenting #viewport { background: #000; }
 body.presenting #stage { box-shadow: none; }
 body.presenting, body.presenting .layer { cursor: none !important; }
@@ -257,3 +261,25 @@ body.presenting, body.presenting .layer { cursor: none !important; }
   pointer-events: none;
   transition: opacity .3s;
 }
+
+/* ---------- export dialog ---------- */
+.modal {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.6);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 999998;
+}
+.modal[hidden] { display: none; }
+.modal .card {
+  width: min(440px, calc(100vw - 32px));
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 18px 20px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.6);
+}
+.modal h3 { margin: 0 0 10px; font-size: 15px; }
+.row.end { justify-content: flex-end; margin-top: 12px; }
+.progress { height: 8px; background: #12141a; border-radius: 4px; overflow: hidden; margin-top: 10px; }
+.progress > div { height: 100%; width: 0; background: var(--accent-2); transition: width .2s linear; }
+#vidStatus { min-height: 1.4em; margin: 8px 0 0; }

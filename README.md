@@ -15,6 +15,24 @@ No install and no build step. It runs fully offline.
 
 With only one display, for example a mirrored projector, use **Present** or press **P**. This hides the editor and makes the current window fullscreen. Press **Esc** to return.
 
+## Running it on the projector without a computer
+
+Most smart projectors, including Android ones, have a built-in media player that can play photos and videos from a USB stick or from internal storage. Once your mapping is lined up, you can export it and let the projector play it on its own.
+
+1. **Line up the mapping once.** Connect a laptop to the projector, open the output window on the projector (or use **Present**), and adjust every layer until it sits exactly where you want it on the wall.
+2. **Export it** at the projector's resolution (set under **Output → Resolution**):
+   - **Export PNG** for still shapes and images. It saves one image with all the warping baked in.
+   - **Export video** for anything that moves, or for players that can't loop a photo. It saves a looping **MP4** (H.264). If a video layer is in the mapping, the length defaults to that video's length, so the loop is seamless. Recording runs in real time, so keep the tab visible until it finishes.
+3. **Copy the file** to a USB stick. You can also send it to the projector over WiFi or with a phone app if your model supports that.
+4. **Play it on the projector.** Open the file in the projector's file manager or media player. For a video, turn on **Repeat / Loop**. For a photo, start a slideshow and turn off the timer, or use the video export instead.
+
+To keep the projected image aligned with the wall:
+- Leave the projector, its **zoom** and its **position** exactly as they were when you made the mapping.
+- Turn off **auto keystone** and **auto focus/correction** in the projector's settings, or set keystone to 0. The mapping already includes all the warping, and automatic correction would distort it.
+- Use the video's **native resolution**. If the export doesn't match the projector, its player will rescale the image and the mapping will shift.
+
+Use **Save project** to keep an editable copy, so you can tweak the mapping and export again later.
+
 ## Features
 
 - **Multiple layers:** images (PNG, JPG, GIF, SVG, WebP), looping videos (MP4, WebM), shapes (rectangle, circle, triangle, star, hexagon) and text.
@@ -33,7 +51,8 @@ With only one display, for example a mirrored projector, use **Present** or pres
 - **Alignment grid (G):** a test pattern with the output border, grid, diagonals and a centre circle, for lining up the projector.
 - **Undo/redo:** Ctrl+Z and Ctrl+Shift+Z.
 - **Autosave:** the project and media are saved in the browser (IndexedDB), so they are still there after a reload.
-- **Export/Import:** saves the whole project, media included, as one `.json` file to back up or move to another computer.
+- **Export PNG / Export video:** renders the finished mapping at full output resolution, with the warping, opacity and blend modes baked in, for playing directly on a projector.
+- **Save project / Open project:** saves the whole editable project, media included, as one `.json` file to back up or move to another computer.
 
 ## Keyboard shortcuts
 
