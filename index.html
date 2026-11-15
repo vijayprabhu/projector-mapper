@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Projector Mapper</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header id="toolbar">
+    <div class="brand">Projector Mapper</div>
+
+    <div class="group">
+      <label class="btn primary" title="Add images or videos (or drag & drop / paste)">
+        + Media
+        <input id="fileInput" type="file" accept="image/*,video/*" multiple hidden>
+      </label>
+      <button class="btn" data-cmd="shape:rect" title="Rectangle">▭</button>
+      <button class="btn" data-cmd="shape:ellipse" title="Circle / ellipse">◯</button>
+      <button class="btn" data-cmd="shape:triangle" title="Triangle">△</button>
+      <button class="btn" data-cmd="shape:star" title="Star">☆</button>
+      <button class="btn" data-cmd="shape:hexagon" title="Hexagon">⬡</button>
+      <button class="btn" data-cmd="text" title="Text">T</button>
+    </div>
+
+    <div class="group seg" id="modeSeg">
+      <button class="btn" data-cmd="mode:transform" title="Move / resize / rotate (V)">Transform</button>
+      <button class="btn" data-cmd="mode:warp" title="Drag corners freely to fit a surface (W)">Corner warp</button>
+    </div>
+
+    <div class="group">
+      <button class="btn" data-cmd="undo" title="Undo (Ctrl+Z)">↶</button>
+      <button class="btn" data-cmd="redo" title="Redo (Ctrl+Shift+Z)">↷</button>
+      <button class="btn" data-cmd="grid" id="gridBtn" title="Alignment grid (G)">Grid</button>
+    </div>
+
+    <div class="spacer"></div>
+
+    <div class="group">
+      <button class="btn" data-cmd="export" title="Save project to a file">Export</button>
+      <label class="btn" title="Load project from a file">
+        Import
+        <input id="importInput" type="file" accept=".json,application/json" hidden>
+      </label>
+      <button class="btn" data-cmd="new" title="Clear everything">New</button>
+    </div>
+
+    <div class="group">
+      <button class="btn accent" data-cmd="output" title="Open a window to drag onto the projector">Open output window</button>
+      <button class="btn accent" data-cmd="present" title="Hide the UI and go fullscreen here (P)">Present</button>
+    </div>
+  </header>
+
+  <main id="main">
+    <div id="viewport">
+      <div id="stage"></div>
+      <div id="emptyHint">
+        <h2>Start mapping</h2>
+        <p>Add an image or video with <b>+ Media</b> (or drag files here), or add a shape from the toolbar.</p>
+        <p>Use <b>Transform</b> to move, resize and rotate. Use <b>Corner warp</b> to drag each corner onto the edges of a surface.</p>
+        <p>Click <b>Open output window</b>, drag it to the projector, and double-click it to go fullscreen.</p>
+      </div>
+    </div>
+
+    <aside id="panel">
+      <section>
+        <h3>Layers</h3>
+        <ul id="layerList"></ul>
+        <div class="row tight">
+          <button class="btn sm" data-cmd="up" title="Bring forward (])">Forward</button>
+          <button class="btn sm" data-cmd="down" title="Send backward ([)">Backward</button>
+          <button class="btn sm" data-cmd="dup" title="Duplicate (Ctrl+D)">Duplicate</button>
+          <button class="btn sm danger" data-cmd="del" title="Delete (Del)">Delete</button>
+        </div>
+      </section>
+
+      <section id="props"></section>
+
+      <section>
+        <h3>Output</h3>
+        <div class="row">
+          <label>Resolution</label>
+          <input id="outW" type="number" min="100" max="8192" step="1"> ×
+          <input id="outH" type="number" min="100" max="8192" step="1">
+        </div>
+        <div class="row">
+          <label>Presets</label>
+          <select id="resPreset">
+            <option value="">Choose…</option>
+            <option>1280x720</option>
+            <option>1280x800</option>
+            <option>1920x1080</option>
+            <option>1920x1200</option>
+            <option>2560x1440</option>
+            <option>3840x2160</option>
+          </select>
+        </div>
+        <div class="row">
+          <label>Background</label>
+          <input id="bgColor" type="color">
+        </div>
+        <p class="muted">Set this to your projector's native resolution so that what you see here matches the projected image.</p>
+      </section>
+
+      <section class="muted keys">
+        <h3>Shortcuts</h3>
+        <div><kbd>V</kbd> transform · <kbd>W</kbd> corner warp</div>
+        <div><kbd>Arrows</kbd> nudge (<kbd>Shift</kbd> ×10). In warp mode, nudges the selected corner</div>
+        <div><kbd>Shift</kbd>+drag rotate: snap to 15° · <kbd>Alt</kbd>+drag resize: scale from centre</div>
+        <div><kbd>Alt</kbd>+drag corner in warp mode: turn off snapping</div>
+        <div><kbd>G</kbd> grid · <kbd>H</kbd> hide UI · <kbd>P</kbd> present · <kbd>Esc</kbd> exit</div>
+        <div><kbd>Ctrl+D</kbd> duplicate · <kbd>Del</kbd> delete · <kbd>[</kbd> <kbd>]</kbd> reorder</div>
+      </section>
+    </aside>
+  </main>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
