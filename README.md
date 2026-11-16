@@ -87,4 +87,13 @@ Use **Save project** to keep an editable copy, so you can tweak the mapping and 
 
 Every layer is drawn at its base size and mapped onto four output corners with a CSS `matrix3d` perspective transform (a homography). Moving, resizing, rotating and warping all edit those four corners. This is why any layer type, including video and text, can be perspective-warped. The output window is a second browser window that the editor drives directly, so it stays in sync and needs no server.
 
-Code layout: `index.html` (UI), `css/style.css`, `js/app.js` (all logic, plain JavaScript with no dependencies).
+Code layout: `index.html` (UI), `css/style.css`, and plain JavaScript with no dependencies under `js/`:
+
+- `js/core/`: geometry, crop and spin effects, storage, project state and undo, layer operations.
+- `js/render/`: layer content and the renderer shared by the editor and the output window.
+- `js/ui/`: editor canvas, side panel, crop dialog, messages.
+- `js/output/`: output window and present mode.
+- `js/export/`: PNG and video export, and project files.
+- `js/app.js`: commands, keyboard shortcuts and start-up.
+
+The scripts are ordinary `<script>` files that share one `PM` namespace, not ES modules, so the app still works when `index.html` is opened straight from disk. The functional architecture is drawn in [docs/functional-architecture.svg](docs/functional-architecture.svg).

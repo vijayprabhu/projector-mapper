@@ -9,11 +9,12 @@
     .al { font-size: 11.5px; fill: #374151; font-style: italic; }
     .h1 { font-size: 24px; font-weight: 700; fill: #111827; }
     .h2 { font-size: 13px; fill: #4B5563; }
+    .src { font-size: 10.5px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fill-opacity: .8; }
   </style>
 </defs>
 <rect width="1720" height="1160" fill="#FFFFFF"/>
 <text x="30" y="44" class="h1">Projector Mapper: Functional Architecture</text>
-<text x="30" y="68" class="h2">Browser-based projection-mapping tool. Single page, no server or build step: index.html · css/style.css · js/app.js (runs from GitHub Pages or file://).</text>
+<text x="30" y="68" class="h2">Browser-based projection-mapping tool. Single page, no server or build step: index.html · css/style.css · js/** classic scripts on one PM namespace (runs from GitHub Pages or file://).</text>
 
 <rect x="220" y="96" width="1080" height="1040" rx="16" fill="#FBFBFD" stroke="#9CA3AF" stroke-width="1.5" stroke-dasharray="8 5"/>
 <text x="236" y="120" class="bt" font-size="14" fill="#374151">Projector Mapper web app (runs entirely in the browser)</text>
@@ -29,6 +30,7 @@
 <text x="268" y="266" class="bl">Save / Open / New project</text>
 <text x="268" y="282" class="bl">Export PNG / video</text>
 <text x="268" y="298" class="bl">Output window · Present</text>
+<text x="268" y="347" class="src" fill="#1E4FA8">index.html · js/app.js</text>
 <rect x="464" y="160" width="214" height="196" rx="8" fill="#EAF2FF" stroke="#4F8CFF" stroke-width="1.5"/>
 <text x="476" y="182" class="bt" fill="#1E4FA8" font-size="14">Editor Viewport</text>
 <text x="476" y="202" class="bl">Stage scaled to output res.</text>
@@ -37,6 +39,7 @@
 <text x="476" y="250" class="bl">Corner warp (per corner)</text>
 <text x="476" y="266" class="bl">Snap to corners / edges</text>
 <text x="476" y="282" class="bl">Shift: 15° snap, Alt: centre</text>
+<text x="476" y="347" class="src" fill="#1E4FA8">js/ui/editor.js</text>
 <rect x="690" y="160" width="204" height="196" rx="8" fill="#EAF2FF" stroke="#4F8CFF" stroke-width="1.5"/>
 <text x="702" y="182" class="bt" fill="#1E4FA8" font-size="14">Side Panel</text>
 <text x="702" y="202" class="bl">Layer list: select, rename,</text>
@@ -46,6 +49,7 @@
 <text x="702" y="266" class="bl">  shape/text styling</text>
 <text x="702" y="282" class="bl">Output: resolution, presets,</text>
 <text x="702" y="298" class="bl">  background colour</text>
+<text x="702" y="347" class="src" fill="#1E4FA8">js/ui/panel.js</text>
 <rect x="906" y="160" width="176" height="196" rx="8" fill="#EAF2FF" stroke="#4F8CFF" stroke-width="1.5"/>
 <text x="918" y="182" class="bt" fill="#1E4FA8" font-size="14">Dialogs</text>
 <text x="918" y="202" class="bl">Crop editor</text>
@@ -54,6 +58,8 @@
 <text x="918" y="250" class="bl">Video export</text>
 <text x="918" y="266" class="bl">  length, frame rate,</text>
 <text x="918" y="282" class="bl">  progress, cancel</text>
+<text x="918" y="347" class="src" fill="#1E4FA8">js/export/video.js</text>
+<text x="918" y="334" class="src" fill="#1E4FA8">js/ui/crop-dialog.js</text>
 <rect x="1094" y="160" width="170" height="196" rx="8" fill="#EAF2FF" stroke="#4F8CFF" stroke-width="1.5"/>
 <text x="1106" y="182" class="bt" fill="#1E4FA8" font-size="14">Input Handling</text>
 <text x="1106" y="202" class="bl">Keyboard shortcuts</text>
@@ -62,45 +68,52 @@
 <text x="1106" y="250" class="bl">Drag &amp; drop files</text>
 <text x="1106" y="266" class="bl">Paste images</text>
 <text x="1106" y="282" class="bl">Pointer capture</text>
+<text x="1106" y="347" class="src" fill="#1E4FA8">js/app.js</text>
 <rect x="240" y="410" width="560" height="300" rx="12" fill="none" stroke="#2FBF8F" stroke-width="1.2" stroke-opacity=".55"/>
 <rect x="254" y="399" width="156.4" height="22" rx="11" fill="#2FBF8F"/>
 <text x="264" y="414" class="band">APPLICATION CORE</text>
 <rect x="256" y="432" width="172" height="124" rx="8" fill="#E7F7EF" stroke="#2FBF8F" stroke-width="1.5"/>
-<text x="268" y="454" class="bt" fill="#14724F" font-size="14">Command Dispatcher</text>
+<text x="268" y="454" class="bt" fill="#14724F" font-size="14">Dispatcher &amp; Events</text>
 <text x="268" y="474" class="bl">run(cmd) routes toolbar,</text>
 <text x="268" y="490" class="bl">panel and key actions</text>
-<text x="268" y="506" class="bl">to domain operations</text>
+<text x="268" y="506" class="bl">PM.events notifies views</text>
+<text x="268" y="547" class="src" fill="#14724F">js/app.js</text>
+<text x="268" y="534" class="src" fill="#14724F">js/core/namespace.js</text>
 <rect x="440" y="432" width="172" height="124" rx="8" fill="#E7F7EF" stroke="#2FBF8F" stroke-width="1.5"/>
 <text x="452" y="454" class="bt" fill="#14724F" font-size="14">Project Model</text>
 <text x="452" y="474" class="bl">Output w × h, background,</text>
 <text x="452" y="490" class="bl">grid, ordered layers</text>
 <text x="452" y="506" class="bl">Layer: type, w × h, four</text>
 <text x="452" y="522" class="bl">corners, opacity, blend</text>
+<text x="452" y="547" class="src" fill="#14724F">js/core/state.js</text>
 <rect x="624" y="432" width="160" height="124" rx="8" fill="#E7F7EF" stroke="#2FBF8F" stroke-width="1.5"/>
 <text x="636" y="454" class="bt" fill="#14724F" font-size="14">History</text>
 <text x="636" y="474" class="bl">commit() snapshots</text>
 <text x="636" y="490" class="bl">Undo / redo stacks</text>
 <text x="636" y="506" class="bl">(150 states)</text>
 <text x="636" y="522" class="bl">Triggers autosave</text>
+<text x="636" y="547" class="src" fill="#14724F">js/core/state.js</text>
 <rect x="256" y="568" width="172" height="128" rx="8" fill="#E7F7EF" stroke="#2FBF8F" stroke-width="1.5"/>
 <text x="268" y="590" class="bt" fill="#14724F" font-size="14">Layer Operations</text>
 <text x="268" y="610" class="bl">Add · duplicate · delete</text>
-<text x="268" y="626" class="bl">Reorder (z-index)</text>
-<text x="268" y="642" class="bl">Flip H/V · rotate 90°</text>
-<text x="268" y="658" class="bl">Reset warp · aspect</text>
-<text x="268" y="674" class="bl">Fit / fill / centre</text>
+<text x="268" y="626" class="bl">Reorder · flip · rotate 90°</text>
+<text x="268" y="642" class="bl">Reset warp · aspect</text>
+<text x="268" y="658" class="bl">Fit / fill / centre</text>
+<text x="268" y="687" class="src" fill="#14724F">js/core/layers.js</text>
 <rect x="440" y="568" width="172" height="128" rx="8" fill="#E7F7EF" stroke="#2FBF8F" stroke-width="1.5"/>
 <text x="452" y="590" class="bt" fill="#14724F" font-size="14">Crop Service</text>
 <text x="452" y="610" class="bl">Normalised crop rect +</text>
 <text x="452" y="626" class="bl">shape (rect / circle)</text>
 <text x="452" y="642" class="bl">Re-maps corners so the</text>
 <text x="452" y="658" class="bl">kept area stays in place</text>
+<text x="452" y="687" class="src" fill="#14724F">js/core/effects.js</text>
 <rect x="624" y="568" width="160" height="128" rx="8" fill="#E7F7EF" stroke="#2FBF8F" stroke-width="1.5"/>
 <text x="636" y="590" class="bt" fill="#14724F" font-size="14">Spin Service</text>
 <text x="636" y="610" class="bl">rpm + direction</text>
 <text x="636" y="626" class="bl">Wall-clock phase keeps</text>
 <text x="636" y="642" class="bl">all views in sync</text>
 <text x="636" y="658" class="bl">Seamless loop length</text>
+<text x="636" y="687" class="src" fill="#14724F">js/core/effects.js</text>
 <rect x="820" y="410" width="460" height="300" rx="12" fill="none" stroke="#8B5CF6" stroke-width="1.2" stroke-opacity=".55"/>
 <rect x="834" y="399" width="156.4" height="22" rx="11" fill="#8B5CF6"/>
 <text x="844" y="414" class="band">RENDERING ENGINE</text>
@@ -110,24 +123,28 @@
 <text x="848" y="490" class="bl">  homography coefficients</text>
 <text x="848" y="506" class="bl">CSS matrix3d per layer</text>
 <text x="848" y="522" class="bl">Point mapping, bbox, snap</text>
+<text x="848" y="547" class="src" fill="#5B2DB8">js/core/geometry.js</text>
 <rect x="1058" y="432" width="206" height="124" rx="8" fill="#F1EBFF" stroke="#8B5CF6" stroke-width="1.5"/>
 <text x="1070" y="454" class="bt" fill="#5B2DB8" font-size="14">Renderer (DOM sync)</text>
 <text x="1070" y="474" class="bl">One instance per view</text>
 <text x="1070" y="490" class="bl">  (editor, output window)</text>
 <text x="1070" y="506" class="bl">Diffs layers → elements</text>
 <text x="1070" y="522" class="bl">Applies warp, crop, spin</text>
+<text x="1070" y="547" class="src" fill="#5B2DB8">js/render/renderer.js</text>
 <rect x="836" y="568" width="210" height="128" rx="8" fill="#F1EBFF" stroke="#8B5CF6" stroke-width="1.5"/>
 <text x="848" y="590" class="bt" fill="#5B2DB8" font-size="14">Content Builders</text>
 <text x="848" y="610" class="bl">Image  &lt;img&gt;</text>
 <text x="848" y="626" class="bl">Video  &lt;video&gt; (loop, muted)</text>
 <text x="848" y="642" class="bl">Shape  generated SVG</text>
 <text x="848" y="658" class="bl">Text   styled block</text>
+<text x="848" y="687" class="src" fill="#5B2DB8">js/render/content.js</text>
 <rect x="1058" y="568" width="206" height="128" rx="8" fill="#F1EBFF" stroke="#8B5CF6" stroke-width="1.5"/>
 <text x="1070" y="590" class="bt" fill="#5B2DB8" font-size="14">Alignment Grid</text>
 <text x="1070" y="610" class="bl">100 px grid, diagonals,</text>
 <text x="1070" y="626" class="bl">centre circle, border</text>
 <text x="1070" y="642" class="bl">Resolution label</text>
 <text x="1070" y="658" class="bl">Shown in all views</text>
+<text x="1070" y="687" class="src" fill="#5B2DB8">js/render/content.js</text>
 <rect x="240" y="750" width="1040" height="190" rx="12" fill="none" stroke="#F0A020" stroke-width="1.2" stroke-opacity=".55"/>
 <rect x="254" y="739" width="148.0" height="22" rx="11" fill="#F0A020"/>
 <text x="264" y="754" class="band">OUTPUT &amp; EXPORT</text>
@@ -138,12 +155,14 @@
 <text x="268" y="846" class="bl">Double-click / F: fullscreen</text>
 <text x="268" y="862" class="bl">Live sync with editor</text>
 <text x="268" y="878" class="bl">Cursor auto-hide</text>
+<text x="268" y="915" class="src" fill="#8A5A00">js/output/output-window.js</text>
 <rect x="458" y="772" width="160" height="152" rx="8" fill="#FFF4DF" stroke="#F0A020" stroke-width="1.5"/>
 <text x="470" y="794" class="bt" fill="#8A5A00" font-size="14">Present Mode</text>
 <text x="470" y="814" class="bl">Hide UI in this tab</text>
 <text x="470" y="830" class="bl">Fullscreen (P) or</text>
 <text x="470" y="846" class="bl">UI-hidden only (H)</text>
 <text x="470" y="862" class="bl">Esc to exit</text>
+<text x="470" y="915" class="src" fill="#8A5A00">js/output/present.js</text>
 <rect x="630" y="772" width="210" height="152" rx="8" fill="#FFF4DF" stroke="#F0A020" stroke-width="1.5"/>
 <text x="642" y="794" class="bt" fill="#8A5A00" font-size="14">PNG Export</text>
 <text x="642" y="814" class="bl">Rasterise each layer</text>
@@ -151,6 +170,8 @@
 <text x="642" y="846" class="bl">WebGL2 perspective warp</text>
 <text x="642" y="862" class="bl">Canvas 2D compositing</text>
 <text x="642" y="878" class="bl">  (opacity, blend modes)</text>
+<text x="642" y="915" class="src" fill="#8A5A00">js/export/pipeline.js</text>
+<text x="642" y="902" class="src" fill="#8A5A00">js/export/png.js</text>
 <rect x="852" y="772" width="210" height="152" rx="8" fill="#FFF4DF" stroke="#F0A020" stroke-width="1.5"/>
 <text x="864" y="794" class="bt" fill="#8A5A00" font-size="14">Video Export</text>
 <text x="864" y="814" class="bl">Same pipeline per frame</text>
@@ -158,6 +179,8 @@
 <text x="864" y="846" class="bl">MP4 (H.264) or WebM</text>
 <text x="864" y="862" class="bl">Loop length from videos</text>
 <text x="864" y="878" class="bl">  / spin periods</text>
+<text x="864" y="915" class="src" fill="#8A5A00">js/export/pipeline.js</text>
+<text x="864" y="902" class="src" fill="#8A5A00">js/export/video.js</text>
 <rect x="1074" y="772" width="190" height="152" rx="8" fill="#FFF4DF" stroke="#F0A020" stroke-width="1.5"/>
 <text x="1086" y="794" class="bt" fill="#8A5A00" font-size="14">Project File I/O</text>
 <text x="1086" y="814" class="bl">Save: JSON with media</text>
@@ -165,6 +188,7 @@
 <text x="1086" y="846" class="bl">Open: restore media</text>
 <text x="1086" y="862" class="bl">  + project, keep undo</text>
 <text x="1086" y="878" class="bl">New: clear layers</text>
+<text x="1086" y="915" class="src" fill="#8A5A00">js/export/project-file.js</text>
 <rect x="240" y="980" width="1040" height="140" rx="12" fill="none" stroke="#6B7280" stroke-width="1.2" stroke-opacity=".55"/>
 <rect x="254" y="969" width="282.40000000000003" height="22" rx="11" fill="#6B7280"/>
 <text x="264" y="984" class="band">PERSISTENCE &amp; PLATFORM SERVICES</text>
@@ -173,11 +197,13 @@
 <text x="268" y="1044" class="bl">kv: project JSON (autosave, 400 ms debounce)</text>
 <text x="268" y="1060" class="bl">media: original image / video blobs</text>
 <text x="268" y="1076" class="bl">Unused media garbage-collected (with undo/redo)</text>
+<text x="268" y="1095" class="src" fill="#374151">js/core/storage.js</text>
 <rect x="648" y="1002" width="170" height="102" rx="8" fill="#EEF0F4" stroke="#6B7280" stroke-width="1.5"/>
 <text x="660" y="1024" class="bt" fill="#374151" font-size="14">Media Cache</text>
 <text x="660" y="1044" class="bl">mediaId → object URL</text>
 <text x="660" y="1060" class="bl">Restored on start-up</text>
 <text x="660" y="1076" class="bl">Shared by all views</text>
+<text x="660" y="1095" class="src" fill="#374151">js/core/state.js</text>
 <rect x="830" y="1002" width="434" height="102" rx="8" fill="#EEF0F4" stroke="#6B7280" stroke-width="1.5"/>
 <text x="842" y="1024" class="bt" fill="#374151" font-size="14">Browser APIs used</text>
 <text x="842" y="1044" class="bl">CSS 3D transforms · clip-path · CSS animations</text>
@@ -200,7 +226,7 @@
 <text x="42" y="1032" class="bt" fill="#111827" font-size="14">Static Hosting</text>
 <text x="42" y="1052" class="bl">GitHub Pages</text>
 <text x="42" y="1068" class="bl">or local file://</text>
-<text x="42" y="1084" class="bl">serves the 3 files</text>
+<text x="42" y="1084" class="bl">serves static files</text>
 <rect x="1340" y="930" width="350" height="120" rx="8" fill="#FFFFFF" stroke="#374151" stroke-width="1.5" stroke-dasharray="6 4"/>
 <text x="1352" y="952" class="bt" fill="#111827" font-size="14">Projector: live input (HDMI)</text>
 <text x="1352" y="972" class="bl">Shows Output Window / Present mode</text>
@@ -242,7 +268,7 @@
 <path d="M1169,772 L1169,760 L1326,760 L1326,690 L1338,690" fill="none" stroke="#4B5563" stroke-width="1.6" marker-end="url(#ah)"/>
 <path d="M1515,716 L1515,768" fill="none" stroke="#4B5563" stroke-width="1.6" marker-end="url(#ah)"/>
 <text x="1525" y="746" class="al" text-anchor="start">copy via USB stick</text>
-<rect x="1340" y="140" width="350" height="250" rx="10" fill="#fff" stroke="#D1D5DB"/>
+<rect x="1340" y="140" width="350" height="272" rx="10" fill="#fff" stroke="#D1D5DB"/>
 <text x="1354" y="164" class="bt" font-size="14" fill="#111827">Legend</text>
 <rect x="1354" y="172" width="22" height="16" rx="4" fill="#EAF2FF" stroke="#4F8CFF" stroke-width="1.5"/>
 <text x="1386" y="185" class="bl" font-size="13">Presentation / interaction</text>
@@ -258,12 +284,14 @@
 <text x="1386" y="315" class="bl" font-size="13">External actor / system</text>
 <path d="M1354,338 L1376,338" stroke="#4B5563" stroke-width="1.6" marker-end="url(#ah)"/><text x="1386" y="343" class="bl" font-size="13">Control / data flow</text>
 <path d="M1354,362 L1376,362" stroke="#4B5563" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#ah)"/><text x="1386" y="367" class="bl" font-size="13">Asynchronous / background flow</text>
-<rect x="1340" y="420" width="350" height="150" rx="10" fill="#F9FAFB" stroke="#D1D5DB"/>
-<text x="1354" y="444" class="bt" font-size="14" fill="#111827">Key design principles</text>
-<text x="1354" y="466" class="bl">Every layer = base size + 4 output corners;</text>
-<text x="1354" y="482" class="bl">  move, resize, rotate and warp all edit corners</text>
-<text x="1354" y="498" class="bl">One project model drives editor, output</text>
-<text x="1354" y="514" class="bl">  window and exports (WYSIWYG)</text>
-<text x="1354" y="530" class="bl">Offline-first: no backend, all data local</text>
-<text x="1354" y="546" class="bl">No dependencies, no build; works from file://</text>
+<text x="1354" y="391" class="src" fill="#374151">js/…</text><text x="1386" y="391" class="bl" font-size="13">Source module implementing the block</text>
+<rect x="1340" y="426" width="350" height="162" rx="10" fill="#F9FAFB" stroke="#D1D5DB"/>
+<text x="1354" y="450" class="bt" font-size="14" fill="#111827">Key design principles</text>
+<text x="1354" y="472" class="bl">Every layer = base size + 4 output corners;</text>
+<text x="1354" y="488" class="bl">  move, resize, rotate and warp all edit corners</text>
+<text x="1354" y="504" class="bl">One project model drives editor, output</text>
+<text x="1354" y="520" class="bl">  window and exports (WYSIWYG)</text>
+<text x="1354" y="536" class="bl">Offline-first: no backend, all data local</text>
+<text x="1354" y="552" class="bl">No dependencies, no build; works from file://</text>
+<text x="1354" y="568" class="bl">Modules: classic scripts on one PM namespace</text>
 </svg>

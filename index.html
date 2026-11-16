@@ -157,6 +157,27 @@
     </div>
   </div>
 
+  <!-- Plain scripts (not ES modules) so the app also works from file://.
+       Order matters: each script adds to the global PM namespace and may use
+       the ones above it. -->
+  <script src="js/core/namespace.js"></script>
+  <script src="js/core/geometry.js"></script>
+  <script src="js/core/effects.js"></script>
+  <script src="js/core/storage.js"></script>
+  <script src="js/core/state.js"></script>
+  <script src="js/core/layers.js"></script>
+  <script src="js/render/content.js"></script>
+  <script src="js/render/renderer.js"></script>
+  <script src="js/ui/toast.js"></script>
+  <script src="js/ui/editor.js"></script>
+  <script src="js/ui/crop-dialog.js"></script>
+  <script src="js/output/output-window.js"></script>
+  <script src="js/output/present.js"></script>
+  <script src="js/ui/panel.js"></script>
+  <script src="js/export/pipeline.js"></script>
+  <script src="js/export/project-file.js"></script>
+  <script src="js/export/png.js"></script>
+  <script src="js/export/video.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
